@@ -41,12 +41,19 @@ if (process.env.NODE_ENV === 'production') {
     }
   });
 } else {
-  // Development - log emails to console
+  // Development - ACTUALLY LOG THE OTP
   transporter = {
     sendMail: async (options) => {
       console.log('📧 DEV EMAIL:', options.to);
       console.log('📧 Subject:', options.subject);
-      console.log('📧 OTP would be sent in production');
+      
+      // Extract OTP from HTML email body
+      const otpMatch = options.html.match(/\b(\d{6})\b/);
+      const otp = otpMatch ? otpMatch[1] : 'NOT FOUND';
+      
+      console.log(`📧 DEVELOPMENT OTP for ${options.to}: ${otp}`);
+      console.log('📧 In production, this would be sent via email');
+      
       return { messageId: 'dev-' + Date.now() };
     },
     verify: (callback) => callback(null, true)
@@ -334,12 +341,13 @@ app.post('/auth/send-otp', async (req, res) => {
       }
       
       res.json({
-        success: true,
-        message: process.env.NODE_ENV === 'production' 
-          ? 'OTP sent to your email' 
-          : `DEV OTP: ${otp}`,
-        expiresIn: '10 minutes'
-      });
+  success: true,
+  message: process.env.NODE_ENV === 'production' 
+    ? 'OTP sent to your email' 
+    : `Development OTP: ${otp}`,
+  otp: process.env.NODE_ENV === 'production' ? undefined : otp, // Only include OTP in dev
+  expiresIn: '10 minutes'
+});
       
     } catch (emailError) {
       console.error('Email error:', emailError);
