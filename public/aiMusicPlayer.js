@@ -30,6 +30,7 @@ const resendOtpBtn = document.getElementById('resendOtpBtn');
 const loginMessage = document.getElementById('loginMessage');
 const emailStep = document.getElementById('emailStep');
 const otpStep = document.getElementById('otpStep');
+const backToEmailBtn = document.getElementById('backToEmailBtn');
 
 // Player Elements
 const currentTitle = document.getElementById('currentTitle');
@@ -55,6 +56,7 @@ const songArtist = document.getElementById('songArtist');
 const songList = document.getElementById('songList');
 const userEmail = document.getElementById('userEmail');
 const logoutBtn = document.getElementById('logoutBtn');
+const refreshBtn = document.getElementById('refreshBtn');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -67,9 +69,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show loading message to user
     showMessage('Waking up music server...', '');
     
-    // Try to connect to backend
+    // Try to connect to backend with timeout
     try {
-        const healthCheck = await fetch(`${BACKEND_URL}/health`, { timeout: 15000 });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        const healthCheck = await fetch(`${BACKEND_URL}/health`, {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
         if (healthCheck.ok) {
             // Backend is awake, check session
             await checkSession();
@@ -77,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             throw new Error('Backend not ready');
         }
     } catch (error) {
-        console.log("Backend sleeping, showing login...");
+        console.log("Backend sleeping, showing login...", error);
         showLogin();
         showMessage('Server is waking up. Try clicking "Send OTP" in 30 seconds.', 'info');
     }
@@ -85,14 +95,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function checkSession() {
     try {
-        // FIXED THIS LINE - ADD $ before {BACKEND_URL}
         const response = await fetch(`${BACKEND_URL}/auth/user`);
         
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
                 authState.isAuthenticated = true;
-                authState.email = data.email;
+                authState.email = data.user.email;
                 showPlayer();
                 loadUserSongs();
                 updateUserInfo();
@@ -103,7 +112,7 @@ async function checkSession() {
             showLogin();
         }
     } catch (error) {
-        console.log("No active session");
+        console.log("No active session", error);
         showLogin();
     }
 }
@@ -134,6 +143,15 @@ function setupEventListeners() {
     verifyOtpBtn.addEventListener('click', verifyOtp);
     resendOtpBtn.addEventListener('click', sendOtp);
     
+    // Add back button listener (THIS WAS MISSING)
+    if (backToEmailBtn) {
+        backToEmailBtn.addEventListener('click', () => {
+            emailStep.style.display = 'block';
+            otpStep.style.display = 'none';
+            loginMessage.textContent = '';
+        });
+    }
+    
     emailInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendOtp();
     });
@@ -160,6 +178,14 @@ function setupEventListeners() {
     
     // Logout listener
     logoutBtn.addEventListener('click', logout);
+    
+    // Refresh listener
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            loadUserSongs();
+            showMessageInPlayer('Refreshing playlist...', 'info');
+        });
+    }
     
     // Audio event listeners
     playerState.audio.addEventListener('timeupdate', updateProgress);
@@ -393,6 +419,7 @@ function togglePlay() {
     
     if (playerState.isPlaying) {
         playerState.audio.pause();
+        playerState.isPlaying = false;
         playBtn.innerHTML = '<i class="fas fa-play"></i>';
         playBtn.title = 'Play';
     } else {
