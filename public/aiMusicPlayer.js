@@ -62,44 +62,38 @@ const refreshBtn = document.getElementById('refreshBtn');
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("🎵 AI Music Player Starting...");
     
-    // Hide loading screen first
-    setTimeout(() => {
-        document.getElementById('loadingScreen').style.display = 'none';
-    }, 500);
-    
     // Setup UI first
     setupEventListeners();
     setupPlayer();
     
-    // Show login screen immediately
+    // Hide loading screen immediately
+    document.getElementById('loadingScreen').style.display = 'none';
+    
+    // FIRST: Show login screen immediately
     showLogin();
     
-    // Try to connect to backend
+    // SECOND: Try to check if user is already logged in (in background)
     setTimeout(async () => {
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            
-            const response = await fetch(`${BACKEND_URL}/health`, {
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
+            console.log("Checking for existing session...");
+            const response = await fetch(`${BACKEND_URL}/auth/user`);
             
             if (response.ok) {
                 const data = await response.json();
-                console.log("Backend is healthy:", data);
-                
-                // Try to check for existing session
-                try {
-                    await checkSession();
-                } catch (sessionError) {
-                    console.log("No active session, staying on login screen");
+                if (data.success) {
+                    authState.isAuthenticated = true;
+                    authState.email = data.user.email;
+                    console.log("User already logged in:", authState.email);
+                    
+                    // Switch to player view
+                    showPlayer();
+                    loadUserSongs();
+                    updateUserInfo();
                 }
             }
+            // If we get 401 or other error, just stay on login screen (which is already showing)
         } catch (error) {
-            console.log("Backend not responding yet:", error.message);
-            showMessage('Backend is waking up. Try again in a moment.', 'info');
+            console.log("Session check failed, staying on login screen");
         }
     }, 1000);
 });
@@ -116,15 +110,13 @@ async function checkSession() {
                 showPlayer();
                 loadUserSongs();
                 updateUserInfo();
-            } else {
-                showLogin();
+                return true;
             }
-        } else {
-            showLogin();
         }
+        return false;
     } catch (error) {
-        console.log("No active session", error);
-        showLogin();
+        console.log("Session check error:", error);
+        return false;
     }
 }
 
@@ -154,12 +146,13 @@ function setupEventListeners() {
     verifyOtpBtn.addEventListener('click', verifyOtp);
     resendOtpBtn.addEventListener('click', sendOtp);
     
-    // Add back button listener (THIS WAS MISSING)
+    // Add back button listener
     if (backToEmailBtn) {
         backToEmailBtn.addEventListener('click', () => {
             emailStep.style.display = 'block';
             otpStep.style.display = 'none';
             loginMessage.textContent = '';
+            otpInput.value = '';
         });
     }
     
