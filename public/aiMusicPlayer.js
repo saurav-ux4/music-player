@@ -59,7 +59,7 @@ const logoutBtn = document.getElementById('logoutBtn');
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     console.log("AI Music Player v3.2.0 Initializing...");
-    checkSession();
+    
     setupEventListeners();
     setupPlayer();
 });
