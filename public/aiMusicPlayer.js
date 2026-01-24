@@ -62,35 +62,46 @@ const refreshBtn = document.getElementById('refreshBtn');
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("🎵 AI Music Player Starting...");
     
+    // Hide loading screen first
+    setTimeout(() => {
+        document.getElementById('loadingScreen').style.display = 'none';
+    }, 500);
+    
     // Setup UI first
     setupEventListeners();
     setupPlayer();
     
-    // Show loading message to user
-    showMessage('Waking up music server...', '');
+    // Show login screen immediately
+    showLogin();
     
-    // Try to connect to backend with timeout
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        
-        const healthCheck = await fetch(`${BACKEND_URL}/health`, {
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (healthCheck.ok) {
-            // Backend is awake, check session
-            await checkSession();
-        } else {
-            throw new Error('Backend not ready');
+    // Try to connect to backend
+    setTimeout(async () => {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
+            const response = await fetch(`${BACKEND_URL}/health`, {
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log("Backend is healthy:", data);
+                
+                // Try to check for existing session
+                try {
+                    await checkSession();
+                } catch (sessionError) {
+                    console.log("No active session, staying on login screen");
+                }
+            }
+        } catch (error) {
+            console.log("Backend not responding yet:", error.message);
+            showMessage('Backend is waking up. Try again in a moment.', 'info');
         }
-    } catch (error) {
-        console.log("Backend sleeping, showing login...", error);
-        showLogin();
-        showMessage('Server is waking up. Try clicking "Send OTP" in 30 seconds.', 'info');
-    }
+    }, 1000);
 });
 
 async function checkSession() {

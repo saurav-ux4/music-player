@@ -259,7 +259,16 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     uptime: process.uptime()
   };
+  
+  // Allow CORS for health check
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
   res.json(health);
+});
+
+// Add a simple root endpoint
+app.get('/', (req, res) => {
+  res.redirect('/index.html');
 });
 
 // API Info

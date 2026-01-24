@@ -1,0 +1,18 @@
+{
+  "name": "AI Music Player",
+  "short_name": "Music Player",
+  "description": "Cloud Music Streaming App",
+  "theme_color": "#7474bf",
+  "background_color": "#7474bf",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/svgs/solid/music.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
