@@ -66,7 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function checkSession() {
     try {
+        // FIXED THIS LINE - ADD $ before {BACKEND_URL}
         const response = await fetch(`${BACKEND_URL}/auth/user`);
+        
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
