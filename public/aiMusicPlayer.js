@@ -57,11 +57,30 @@ const userEmail = document.getElementById('userEmail');
 const logoutBtn = document.getElementById('logoutBtn');
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("AI Music Player v3.2.0 Initializing...");
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("🎵 AI Music Player Starting...");
     
+    // Setup UI first
     setupEventListeners();
     setupPlayer();
+    
+    // Show loading message to user
+    showMessage('Waking up music server...', '');
+    
+    // Try to connect to backend
+    try {
+        const healthCheck = await fetch(`${BACKEND_URL}/health`, { timeout: 15000 });
+        if (healthCheck.ok) {
+            // Backend is awake, check session
+            await checkSession();
+        } else {
+            throw new Error('Backend not ready');
+        }
+    } catch (error) {
+        console.log("Backend sleeping, showing login...");
+        showLogin();
+        showMessage('Server is waking up. Try clicking "Send OTP" in 30 seconds.', 'info');
+    }
 });
 
 async function checkSession() {
