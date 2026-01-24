@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Music Player | Cloud Music Streaming</title>
+    <link rel="stylesheet" href="aiMusicPlayer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#7474bf">
+    <meta name="description" content="AI Music Player - Stream and manage your music in the cloud">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #7474bf, #348ac7); display: flex; justify-content: center; align-items: center; z-index: 9999;">
+        <div style="text-align: center; color: white;">
+            <div style="font-size: 48px; margin-bottom: 20px;">
+                <i class="fas fa-music fa-spin"></i>
+            </div>
+            <h2>AI Music Player</h2>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen" style="display: none;">
+        <div class="login-container">
+            <div class="login-header">
+                <h1><i class="fas fa-music"></i> AI Music Player</h1>
+                <p>Secure cloud music streaming</p>
+            </div>
+            
+            <div id="emailStep">
+                <div class="input-group">
+                    <input type="email" id="emailInput" placeholder="Enter your email" autocomplete="email">
+                </div>
+                <button id="sendOtpBtn" class="login-btn">
+                    <i class="fas fa-envelope"></i> Send OTP
+                </button>
+                <p class="otp-note">We'll send a 6-digit code to your email</p>
+            </div>
+            
+            <div id="otpStep" style="display: none;">
+                <div class="input-group">
+                    <input type="text" id="otpInput" placeholder="Enter 6-digit OTP" maxlength="6" pattern="\d*" inputmode="numeric">
+                </div>
+                <button id="verifyOtpBtn" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Verify & Login
+                </button>
+                <button id="resendOtpBtn" class="text-btn">
+                    <i class="fas fa-redo"></i> Resend OTP
+                </button>
+                <button id="backToEmailBtn" class="text-btn" style="margin-top: 10px;">
+                    <i class="fas fa-arrow-left"></i> Back to Email
+                </button>
+            </div>
+            
+            <div id="loginMessage" class="login-message"></div>
+            
+            <div class="login-footer">
+                <small>AI Music Player v3.3.0 | Cloud Edition</small>
+                <br>
+                <small style="color: rgba(255,255,255,0.5);">Files stored securely in Cloudinary</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" style="display: none;">
+        <div class="player-container">
+            <!-- Now Playing -->
+            <div class="now-playing">
+                <div class="thumbnail-container">
+                    <img id="albumArt" src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop" alt="Album Art" crossorigin="anonymous">
+                </div>
+                <h2 class="song-title" id="currentTitle">Welcome to AI Music Player</h2>
+                <p class="artist" id="currentArtist">Select a song to begin</p>
+            </div>
+            
+            <!-- Progress -->
+            <div class="progress-container" id="progressContainer">
+                <div class="progress" id="progress"></div>
+            </div>
+            <div class="time-info">
+                <span id="currentTime">0:00</span>
+                <span id="duration">0:00</span>
+            </div>
+            
+            <!-- Controls -->
+            <div class="controls">
+                <button class="control-btn" id="shuffleBtn" title="Shuffle">
+                    <i class="fas fa-random"></i>
+                </button>
+                <button class="control-btn" id="prevBtn" title="Previous">
+                    <i class="fas fa-step-backward"></i>
+                </button>
+                <button class="control-btn play-btn" id="playBtn" title="Play">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="control-btn" id="nextBtn" title="Next">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+                <button class="control-btn" id="repeatBtn" title="Repeat">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+            
+            <!-- Volume Control -->
+            <div style="display: flex; align-items: center; justify-content: center; margin: 1rem 0; gap: 10px;">
+                <button class="control-btn" id="volumeBtn" title="Volume">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+                <input type="range" id="volumeSlider" min="0" max="100" value="80" style="width: 100px;">
+            </div>
+            
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <input type="file" id="fileInput" accept="audio/*" style="display: none;">
+                <button class="upload-btn" id="uploadBtn">
+                    <i class="fas fa-cloud-upload-alt"></i> Upload to Cloud
+                </button>
+                <small style="display: block; margin-top: 5px; color: rgba(255,255,255,0.6);">
+                    MP3, WAV, M4A, OGG, WEBM (max 100MB)
+                </small>
+                
+                <div id="uploadForm" style="display: none; margin-top: 1rem;">
+                    <input type="text" id="songTitle" placeholder="Song Title" style="width: 100%; padding: 0.8rem; margin-bottom: 0.5rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white;">
+                    <input type="text" id="songArtist" placeholder="Artist" style="width: 100%; padding: 0.8rem; margin-bottom: 0.5rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white;">
+                    <div style="display: flex; gap: 10px;">
+                        <button id="confirmUpload" style="flex: 1; padding: 0.8rem; border-radius: 10px; background: rgba(76, 175, 80, 0.3); color: white; border: none;">
+                            <i class="fas fa-check"></i> Upload
+                        </button>
+                        <button id="cancelUpload" style="flex: 1; padding: 0.8rem; border-radius: 10px; background: rgba(244, 67, 54, 0.3); color: white; border: none;">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+                <div id="uploadStatus" style="margin-top: 1rem;"></div>
+            </div>
+            
+            <!-- User Info -->
+            <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div style="color: rgba(255,255,255,0.8); margin-bottom: 10px;">
+                    <i class="fas fa-user"></i> <span id="userEmail"></span>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 15px;">
+                    <button id="refreshBtn" class="text-btn" title="Refresh">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button id="logoutBtn" class="text-btn" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Playlist -->
+        <div class="playlist">
+            <h3>
+                <i class="fas fa-list-music"></i> Your Playlist
+                <span id="songCount" style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-left: 10px;">0 songs</span>
+            </h3>
+            <div id="searchBox" style="margin-bottom: 1rem;">
+                <input type="text" id="searchInput" placeholder="Search songs..." style="width: 100%; padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white;">
+            </div>
+            <div id="songList">
+                <!-- Songs will load here -->
+            </div>
+        </div>
+        
+        <!-- Player Status -->
+        <div id="playerStatus" style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; display: none; z-index: 1000;">
+            <small id="statusText"></small>
+        </div>
+    </div>
+
+    <script src="aiMusicPlayer.js"></script>
+    <script>
+        // Hide loading screen when page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.display = 'none';
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
