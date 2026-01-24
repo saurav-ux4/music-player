@@ -30,7 +30,6 @@ const resendOtpBtn = document.getElementById('resendOtpBtn');
 const loginMessage = document.getElementById('loginMessage');
 const emailStep = document.getElementById('emailStep');
 const otpStep = document.getElementById('otpStep');
-const backToEmailBtn = document.getElementById('backToEmailBtn');
 
 // Player Elements
 const currentTitle = document.getElementById('currentTitle');
@@ -56,7 +55,6 @@ const songArtist = document.getElementById('songArtist');
 const songList = document.getElementById('songList');
 const userEmail = document.getElementById('userEmail');
 const logoutBtn = document.getElementById('logoutBtn');
-const refreshBtn = document.getElementById('refreshBtn');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -66,57 +64,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupEventListeners();
     setupPlayer();
     
-    // Hide loading screen immediately
-    document.getElementById('loadingScreen').style.display = 'none';
+    // Show loading message to user
+    showMessage('Waking up music server...', '');
     
-    // FIRST: Show login screen immediately
-    showLogin();
-    
-    // SECOND: Try to check if user is already logged in (in background)
-    setTimeout(async () => {
-        try {
-            console.log("Checking for existing session...");
-            const response = await fetch(`${BACKEND_URL}/auth/user`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    authState.isAuthenticated = true;
-                    authState.email = data.user.email;
-                    console.log("User already logged in:", authState.email);
-                    
-                    // Switch to player view
-                    showPlayer();
-                    loadUserSongs();
-                    updateUserInfo();
-                }
-            }
-            // If we get 401 or other error, just stay on login screen (which is already showing)
-        } catch (error) {
-            console.log("Session check failed, staying on login screen");
+    // Try to connect to backend
+    try {
+        const healthCheck = await fetch(`${BACKEND_URL}/health`, { timeout: 15000 });
+        if (healthCheck.ok) {
+            // Backend is awake, check session
+            await checkSession();
+        } else {
+            throw new Error('Backend not ready');
         }
-    }, 1000);
+    } catch (error) {
+        console.log("Backend sleeping, showing login...");
+        showLogin();
+        showMessage('Server is waking up. Try clicking "Send OTP" in 30 seconds.', 'info');
+    }
 });
 
 async function checkSession() {
     try {
+        // FIXED THIS LINE - ADD $ before {BACKEND_URL}
         const response = await fetch(`${BACKEND_URL}/auth/user`);
         
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
                 authState.isAuthenticated = true;
-                authState.email = data.user.email;
+                authState.email = data.email;
                 showPlayer();
                 loadUserSongs();
                 updateUserInfo();
-                return true;
+            } else {
+                showLogin();
             }
+        } else {
+            showLogin();
         }
-        return false;
     } catch (error) {
-        console.log("Session check error:", error);
-        return false;
+        console.log("No active session");
+        showLogin();
     }
 }
 
@@ -146,16 +134,6 @@ function setupEventListeners() {
     verifyOtpBtn.addEventListener('click', verifyOtp);
     resendOtpBtn.addEventListener('click', sendOtp);
     
-    // Add back button listener
-    if (backToEmailBtn) {
-        backToEmailBtn.addEventListener('click', () => {
-            emailStep.style.display = 'block';
-            otpStep.style.display = 'none';
-            loginMessage.textContent = '';
-            otpInput.value = '';
-        });
-    }
-    
     emailInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendOtp();
     });
@@ -182,14 +160,6 @@ function setupEventListeners() {
     
     // Logout listener
     logoutBtn.addEventListener('click', logout);
-    
-    // Refresh listener
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
-            loadUserSongs();
-            showMessageInPlayer('Refreshing playlist...', 'info');
-        });
-    }
     
     // Audio event listeners
     playerState.audio.addEventListener('timeupdate', updateProgress);
@@ -308,7 +278,15 @@ async function loadUserSongs() {
         renderPlaylist();
         
         if (songs.length > 0) {
-            playSong(0);
+            // DON'T auto-play - just select first song
+            playerState.currentSongIndex = 0;
+            renderPlaylist();
+            
+            // Update display but don't play
+            const firstSong = songs[0];
+            currentTitle.textContent = firstSong.title || 'Select a song to play';
+            currentArtist.textContent = firstSong.artist || 'Click any song in playlist';
+            
             showMessageInPlayer(`${songs.length} songs loaded`, 'success');
         } else {
             showMessageInPlayer('No songs found. Upload some music!', 'info');
@@ -423,7 +401,6 @@ function togglePlay() {
     
     if (playerState.isPlaying) {
         playerState.audio.pause();
-        playerState.isPlaying = false;
         playBtn.innerHTML = '<i class="fas fa-play"></i>';
         playBtn.title = 'Play';
     } else {
@@ -514,10 +491,8 @@ function updateVolume() {
 
 function handleAudioError() {
     console.error('Audio playback error');
-    if (playerState.songs.length > 0) {
-        playNext();
-        showMessageInPlayer('Error playing song. Skipping to next...', 'error');
-    }
+    // Don't auto-skip to next song - let user decide what to do
+    showMessageInPlayer('Error playing song. Try another song.', 'error');
 }
 
 function handleFileSelect(e) {
