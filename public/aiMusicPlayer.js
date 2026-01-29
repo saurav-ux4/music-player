@@ -16,7 +16,9 @@ const playerState = {
     currentSongIndex: -1,
     isPlaying: false,
     currentFile: null,
-    volume: 0.8
+    volume: 0.8,
+    shuffle: false,
+    repeat: 'off' // 'off', 'one', 'all'
 };
 
 // DOM Elements
@@ -30,6 +32,7 @@ const resendOtpBtn = document.getElementById('resendOtpBtn');
 const loginMessage = document.getElementById('loginMessage');
 const emailStep = document.getElementById('emailStep');
 const otpStep = document.getElementById('otpStep');
+const backToEmailBtn = document.getElementById('backToEmailBtn');
 
 // Player Elements
 const currentTitle = document.getElementById('currentTitle');
@@ -42,6 +45,8 @@ const duration = document.getElementById('duration');
 const playBtn = document.getElementById('playBtn');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
+const shuffleBtn = document.getElementById('shuffleBtn');
+const repeatBtn = document.getElementById('repeatBtn');
 const volumeBtn = document.getElementById('volumeBtn');
 const volumeSlider = document.getElementById('volumeSlider');
 const uploadBtn = document.getElementById('uploadBtn');
@@ -55,6 +60,9 @@ const songArtist = document.getElementById('songArtist');
 const songList = document.getElementById('songList');
 const userEmail = document.getElementById('userEmail');
 const logoutBtn = document.getElementById('logoutBtn');
+const refreshBtn = document.getElementById('refreshBtn');
+const searchInput = document.getElementById('searchInput');
+const songCount = document.getElementById('songCount');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
@@ -67,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show loading message to user
     showMessage('Waking up music server...', '');
     
-    // Try to connect to backend
+    // Try to connect to backend with timeout
     try {
         // Use Promise.race to implement timeout
         const timeoutPromise = new Promise((_, reject) => 
@@ -87,18 +95,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log("Backend sleeping or timeout:", error);
         showLogin();
         showMessage('Server is waking up. Try clicking "Send OTP" in 30 seconds.', 'info');
-        
-        // Also hide the loading screen
-        hideLoadingScreen();
     }
 });
 
-
-
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+    }
+}
 
 async function checkSession() {
     try {
-        // FIXED THIS LINE - ADD $ before {BACKEND_URL}
         const response = await fetch(`${BACKEND_URL}/auth/user`);
         
         if (response.ok) {
@@ -122,6 +130,7 @@ async function checkSession() {
 }
 
 function showLogin() {
+    hideLoadingScreen();
     loginScreen.style.display = 'flex';
     mainApp.style.display = 'none';
     emailInput.value = '';
@@ -133,6 +142,7 @@ function showLogin() {
 }
 
 function showPlayer() {
+    hideLoadingScreen();
     loginScreen.style.display = 'none';
     mainApp.style.display = 'block';
 }
@@ -146,6 +156,10 @@ function setupEventListeners() {
     sendOtpBtn.addEventListener('click', sendOtp);
     verifyOtpBtn.addEventListener('click', verifyOtp);
     resendOtpBtn.addEventListener('click', sendOtp);
+    backToEmailBtn.addEventListener('click', () => {
+        emailStep.style.display = 'block';
+        otpStep.style.display = 'none';
+    });
     
     emailInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendOtp();
@@ -159,6 +173,8 @@ function setupEventListeners() {
     playBtn.addEventListener('click', togglePlay);
     prevBtn.addEventListener('click', playPrevious);
     nextBtn.addEventListener('click', playNext);
+    shuffleBtn.addEventListener('click', toggleShuffle);
+    repeatBtn.addEventListener('click', toggleRepeat);
     volumeBtn.addEventListener('click', toggleMute);
     volumeSlider.addEventListener('input', updateVolume);
     
@@ -171,19 +187,25 @@ function setupEventListeners() {
     confirmUpload.addEventListener('click', uploadSong);
     cancelUpload.addEventListener('click', cancelUploadForm);
     
-    // Logout listener
+    // Logout and refresh listeners
     logoutBtn.addEventListener('click', logout);
+    refreshBtn.addEventListener('click', loadUserSongs);
+    
+    // Search listener
+    searchInput.addEventListener('input', filterSongs);
     
     // Audio event listeners
     playerState.audio.addEventListener('timeupdate', updateProgress);
     playerState.audio.addEventListener('loadedmetadata', updateDuration);
-    playerState.audio.addEventListener('ended', playNext);
+    playerState.audio.addEventListener('ended', handleSongEnd);
     playerState.audio.addEventListener('error', handleAudioError);
 }
 
 function setupPlayer() {
     playerState.audio.volume = playerState.volume;
     volumeSlider.value = playerState.volume * 100;
+    updateShuffleButton();
+    updateRepeatButton();
 }
 
 async function sendOtp() {
@@ -291,7 +313,7 @@ async function loadUserSongs() {
         renderPlaylist();
         
         if (songs.length > 0) {
-            // DON'T auto-play - just select first song
+            // Don't auto-play - just select first song
             playerState.currentSongIndex = 0;
             renderPlaylist();
             
@@ -325,8 +347,12 @@ function renderPlaylist() {
             <p><small>Click "Upload Song" to add music</small></p>
         `;
         songList.appendChild(emptyMessage);
+        songCount.textContent = '0 songs';
         return;
     }
+    
+    // Update song count
+    songCount.textContent = `${playerState.songs.length} ${playerState.songs.length === 1 ? 'song' : 'songs'}`;
     
     playerState.songs.forEach((song, index) => {
         const songElement = document.createElement('div');
@@ -369,6 +395,20 @@ function renderPlaylist() {
     });
 }
 
+function filterSongs() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const songItems = document.querySelectorAll('.playlist-item');
+    
+    songItems.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -407,7 +447,7 @@ function playSong(index) {
                 if (tempMsg) tempMsg.remove();
             })
             .catch(error => {
-                // FIXED: Ignore "AbortError" which happens when you skip songs fast
+                // Ignore "AbortError" which happens when you skip songs fast
                 if (error.name === 'AbortError') {
                     console.log('Playback aborted (skipped to next song)');
                     return; 
@@ -459,7 +499,6 @@ function togglePlay() {
     }
 }
 
-
 function playPrevious() {
     if (playerState.songs.length === 0) return;
     
@@ -475,7 +514,7 @@ function playNext() {
     // Calculate next index
     let newIndex = playerState.currentSongIndex + 1;
     
-    // FIXED: Stop at the end of the playlist instead of looping
+    // Stop at the end of the playlist instead of looping
     if (newIndex >= playerState.songs.length) {
         console.log("End of playlist reached");
         playerState.isPlaying = false;
@@ -484,6 +523,94 @@ function playNext() {
     }
     
     playSong(newIndex);
+}
+
+function handleSongEnd() {
+    switch (playerState.repeat) {
+        case 'one':
+            // Play the same song again
+            playerState.audio.currentTime = 0;
+            playerState.audio.play();
+            break;
+        case 'all':
+            // Play next song (loop to beginning if at end)
+            let nextIndex = playerState.currentSongIndex + 1;
+            if (nextIndex >= playerState.songs.length) {
+                nextIndex = 0;
+            }
+            playSong(nextIndex);
+            break;
+        default:
+            // 'off' - stop at end or play next
+            if (playerState.currentSongIndex < playerState.songs.length - 1) {
+                playNext();
+            } else {
+                playerState.isPlaying = false;
+                playBtn.innerHTML = '<i class="fas fa-play"></i>';
+            }
+    }
+}
+
+function toggleShuffle() {
+    playerState.shuffle = !playerState.shuffle;
+    updateShuffleButton();
+    
+    if (playerState.shuffle) {
+        // Create a shuffled version of songs
+        const shuffled = [...playerState.songs];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        playerState.songs = shuffled;
+        renderPlaylist();
+        showMessageInPlayer('Shuffle enabled', 'success');
+    } else {
+        // Reload original order
+        loadUserSongs();
+        showMessageInPlayer('Shuffle disabled', 'info');
+    }
+}
+
+function updateShuffleButton() {
+    if (playerState.shuffle) {
+        shuffleBtn.innerHTML = '<i class="fas fa-random" style="color: #4CAF50;"></i>';
+        shuffleBtn.title = 'Shuffle On';
+    } else {
+        shuffleBtn.innerHTML = '<i class="fas fa-random"></i>';
+        shuffleBtn.title = 'Shuffle Off';
+    }
+}
+
+function toggleRepeat() {
+    const modes = ['off', 'all', 'one'];
+    const currentIndex = modes.indexOf(playerState.repeat);
+    playerState.repeat = modes[(currentIndex + 1) % modes.length];
+    updateRepeatButton();
+    
+    const messages = {
+        'off': 'Repeat Off',
+        'all': 'Repeat All',
+        'one': 'Repeat One'
+    };
+    showMessageInPlayer(messages[playerState.repeat], 'success');
+}
+
+function updateRepeatButton() {
+    switch (playerState.repeat) {
+        case 'off':
+            repeatBtn.innerHTML = '<i class="fas fa-redo"></i>';
+            repeatBtn.title = 'Repeat Off';
+            break;
+        case 'all':
+            repeatBtn.innerHTML = '<i class="fas fa-redo" style="color: #4CAF50;"></i>';
+            repeatBtn.title = 'Repeat All';
+            break;
+        case 'one':
+            repeatBtn.innerHTML = '<i class="fas fa-redo-alt" style="color: #4CAF50;"></i>';
+            repeatBtn.title = 'Repeat One';
+            break;
+    }
 }
 
 function updateProgress() {
@@ -542,7 +669,6 @@ function updateVolume() {
 
 function handleAudioError() {
     console.error('Audio playback error');
-    // Don't auto-skip to next song - let user decide what to do
     showMessageInPlayer('Error playing song. Try another song.', 'error');
 }
 
@@ -697,6 +823,8 @@ async function logout() {
         playerState.audio.pause();
         playerState.isPlaying = false;
         playerState.audio.src = '';
+        playerState.shuffle = false;
+        playerState.repeat = 'off';
         
         // Show login screen
         showLogin();
