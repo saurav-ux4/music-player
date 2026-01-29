@@ -18,9 +18,9 @@ services:
       - key: CLOUDINARY_API_SECRET
         sync: false
       - key: EMAIL_USER
-        sync: false  # ✅ Keep sync: false
+        value: saurav.982216@gmail.com  # ✅ Use 'value' not 'description'
       - key: EMAIL_PASS
-        sync: false  # ✅ Keep sync: false
+        value: opxnrdnqlmtaqcmt  # ✅ Use 'value' not 'description'
       - key: SESSION_SECRET
         generateValue: true
     healthCheckPath: /health
