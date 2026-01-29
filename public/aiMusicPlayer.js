@@ -69,19 +69,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Try to connect to backend
     try {
-        const healthCheck = await fetch(`${BACKEND_URL}/health`, { timeout: 15000 });
-        if (healthCheck.ok) {
+        // Use Promise.race to implement timeout
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 5000)
+        );
+        
+        const healthCheckPromise = fetch(`${BACKEND_URL}/health`);
+        const response = await Promise.race([healthCheckPromise, timeoutPromise]);
+        
+        if (response.ok) {
             // Backend is awake, check session
             await checkSession();
         } else {
             throw new Error('Backend not ready');
         }
     } catch (error) {
-        console.log("Backend sleeping, showing login...");
+        console.log("Backend sleeping or timeout:", error);
         showLogin();
         showMessage('Server is waking up. Try clicking "Send OTP" in 30 seconds.', 'info');
+        
+        // Also hide the loading screen
+        hideLoadingScreen();
     }
 });
+
+
+
 
 async function checkSession() {
     try {
