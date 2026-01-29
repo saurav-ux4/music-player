@@ -65,44 +65,30 @@ const searchInput = document.getElementById('searchInput');
 const songCount = document.getElementById('songCount');
 
 // Initialize
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log("🎵 AI Music Player Starting...");
-    
-    // Setup UI first
-    setupEventListeners();
-    setupPlayer();
-    
-    // Show loading message to user
-    showMessage('Waking up music server...', '');
-    
-    // Try to connect to backend with timeout
-    try {
-        // Use Promise.race to implement timeout
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Timeout')), 5000)
-        );
-        
-        const healthCheckPromise = fetch(`${BACKEND_URL}/health`);
-        const response = await Promise.race([healthCheckPromise, timeoutPromise]);
-        
-        if (response.ok) {
-            // Backend is awake, check session
-            await checkSession();
-        } else {
-            throw new Error('Backend not ready');
-        }
-    } catch (error) {
-        console.log("Backend sleeping or timeout:", error);
-        showLogin();
-        showMessage('Server is waking up. Try clicking "Send OTP" in 30 seconds.', 'info');
-    }
-});
-
-function hideLoadingScreen() {
+async function handleBackendWakeUp() {
+    // Hide loading screen first
     const loadingScreen = document.getElementById('loadingScreen');
     if (loadingScreen) {
         loadingScreen.style.display = 'none';
     }
+    
+    // Show login screen
+    loginScreen.style.display = 'flex';
+    
+    // Set initial message
+    showMessage('Server is waking up (takes ~30s on first load). Click "Send OTP" to activate.', 'info');
+    
+    // Auto-retry backend connection after delay
+    setTimeout(async () => {
+        try {
+            const response = await fetch(`${BACKEND_URL}/health`);
+            if (response.ok) {
+                showMessage('Server is now ready! Try sending OTP again.', 'success');
+            }
+        } catch (e) {
+            // Server still waking up
+        }
+    }, 30000);
 }
 
 async function checkSession() {
@@ -114,17 +100,20 @@ async function checkSession() {
             if (data.success) {
                 authState.isAuthenticated = true;
                 authState.email = data.email;
+                hideLoadingScreen();
                 showPlayer();
                 loadUserSongs();
                 updateUserInfo();
+                return;
             } else {
                 showLogin();
             }
-        } else {
-            showLogin();
         }
-    } catch (error) {
-        console.log("No active session");
+         hideLoadingScreen();
+        showLogin();
+         } catch (error) {
+        console.log("Session check failed:", error);
+        hideLoadingScreen();
         showLogin();
     }
 }
@@ -145,6 +134,33 @@ function showPlayer() {
     hideLoadingScreen();
     loginScreen.style.display = 'none';
     mainApp.style.display = 'block';
+}
+
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+    }
+    // Also ensure no other loading states
+    document.body.style.overflow = 'auto';
+}
+
+function updateLoadingMessage(message) {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+        const messageEl = loadingScreen.querySelector('p');
+        if (messageEl) {
+            messageEl.textContent = message;
+        }
+    }
+}
+
+// Start the app properly
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    // DOM already loaded
+    initializeApp();
 }
 
 function updateUserInfo() {
@@ -899,3 +915,4 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+

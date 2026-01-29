@@ -255,10 +255,11 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     mongodb: mongoose.connection.readyState === 1,
     cloudinary: !!process.env.CLOUDINARY_CLOUD_NAME,
-    email: !!process.env.EMAIL_USER,
     environment: process.env.NODE_ENV || 'development',
     uptime: process.uptime()
   };
+  
+  res.status(200).json(health);
   
   // Allow CORS for health check
   res.header('Access-Control-Allow-Origin', '*');
@@ -287,6 +288,15 @@ app.get('/api/info', (req, res) => {
       sessionDuration: '24 hours'
     }
   });
+});
+
+app.get('/wakeup', (req, res) => {
+    // Simple endpoint that warms up the server
+    res.json({ 
+        status: 'awake',
+        timestamp: new Date().toISOString(),
+        message: 'Server is active'
+    });
 });
 
 // Send OTP

@@ -444,3 +444,16 @@ html {
 body {
     overscroll-behavior-y: contain;
 }
+
+/* Add to the bottom of the file */
+#loadingScreen {
+    display: flex;
+}
+
+#loginScreen {
+    display: none;
+}
+
+#mainApp {
+    display: none;
+}
