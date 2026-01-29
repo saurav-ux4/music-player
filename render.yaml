@@ -19,8 +19,10 @@ services:
         sync: false
       - key: EMAIL_USER
         sync: false
+        description: "saurav.982216@gmail.com"
       - key: EMAIL_PASS
         sync: false
+        description: "opxnrdnqlmtaqcmt"
       - key: SESSION_SECRET
         generateValue: true
     healthCheckPath: /health

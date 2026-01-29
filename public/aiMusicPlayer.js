@@ -6,6 +6,40 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 const HEALTH_TIMEOUT = 10000;
 
+
+// Email system helper
+const EmailHelper = {
+    async checkEmailStatus() {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/email-status`);
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📧 Email system status:', data);
+                return data;
+            }
+            return null;
+        } catch (error) {
+            console.log('Email status check failed:', error);
+            return null;
+        }
+    },
+
+    async getTestOtps() {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/test-otps`);
+            if (response.ok) {
+                const data = await response.json();
+                return data.otps || [];
+            }
+            return [];
+        } catch (error) {
+            console.log('Failed to get test OTPs:', error);
+            return [];
+        }
+    }
+};
+
+
 // ========== STATE MANAGEMENT ==========
 const AppState = {
     // UI States
@@ -324,6 +358,27 @@ async function checkSession() {
         showMessage('Session check failed. Please login again.', 'error');
     }
 }
+//===================================================
+// Added this function to show email status
+async function checkEmailStatus() {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/email-status`);
+    if (response.ok) {
+      const data = await response.json();
+      console.log('📧 Email system status:', data);
+      
+      if (!data.emailConfigured) {
+        showMessageInPlayer(
+          'Email system is in simulation mode. OTPs will be shown in console/logs.', 
+          'warning'
+        );
+      }
+    }
+  } catch (error) {
+    console.log('Could not check email status:', error);
+  }
+}
+//===================================================
 
 async function sendOtp() {
     const email = elements.emailInput.value.trim().toLowerCase();
