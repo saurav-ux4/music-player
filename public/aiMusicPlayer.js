@@ -377,45 +377,75 @@ function playSong(index) {
     // Set audio source
     playerState.audio.src = song.url;
     
-    // Update playlist
+    // Update playlist highlighting
     renderPlaylist();
     
-    // Play the song
-    playerState.audio.play()
-        .then(() => {
-            playerState.isPlaying = true;
-            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-            playBtn.title = 'Pause';
-        })
-        .catch(error => {
-            console.error('Playback error:', error);
-            showMessageInPlayer('Error playing song. Please try another.', 'error');
-        });
+    // Play the song with improved error handling
+    const playPromise = playerState.audio.play();
+    
+    if (playPromise !== undefined) {
+        playPromise
+            .then(() => {
+                playerState.isPlaying = true;
+                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                playBtn.title = 'Pause';
+                // Clear any leftover error messages if play succeeds
+                const tempMsg = document.getElementById('tempMessage');
+                if (tempMsg) tempMsg.remove();
+            })
+            .catch(error => {
+                // FIXED: Ignore "AbortError" which happens when you skip songs fast
+                if (error.name === 'AbortError') {
+                    console.log('Playback aborted (skipped to next song)');
+                    return; 
+                }
+                
+                // Real errors
+                console.error('Playback error:', error);
+                playerState.isPlaying = false;
+                playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                showMessageInPlayer('Error playing this song.', 'error');
+            });
+    }
 }
 
 function togglePlay() {
+    // If no song is selected but we have songs, play the first one
     if (playerState.currentSongIndex === -1 && playerState.songs.length > 0) {
         playSong(0);
         return;
     }
     
+    // If no songs exist at all, do nothing
+    if (playerState.songs.length === 0) {
+        showMessageInPlayer('No songs to play. Upload one!', 'info');
+        return;
+    }
+    
     if (playerState.isPlaying) {
         playerState.audio.pause();
+        playerState.isPlaying = false;
         playBtn.innerHTML = '<i class="fas fa-play"></i>';
         playBtn.title = 'Play';
     } else {
-        playerState.audio.play()
-            .then(() => {
-                playerState.isPlaying = true;
-                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-                playBtn.title = 'Pause';
-            })
-            .catch(error => {
-                console.error('Play error:', error);
-                showMessageInPlayer('Cannot play this song format', 'error');
-            });
+        const playPromise = playerState.audio.play();
+        
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => {
+                    playerState.isPlaying = true;
+                    playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    playBtn.title = 'Pause';
+                })
+                .catch(error => {
+                    if (error.name === 'AbortError') return; // Ignore interruptions
+                    console.error('Play error:', error);
+                    showMessageInPlayer('Cannot play this song format', 'error');
+                });
+        }
     }
 }
+
 
 function playPrevious() {
     if (playerState.songs.length === 0) return;
@@ -429,8 +459,16 @@ function playPrevious() {
 function playNext() {
     if (playerState.songs.length === 0) return;
     
+    // Calculate next index
     let newIndex = playerState.currentSongIndex + 1;
-    if (newIndex >= playerState.songs.length) newIndex = 0;
+    
+    // FIXED: Stop at the end of the playlist instead of looping
+    if (newIndex >= playerState.songs.length) {
+        console.log("End of playlist reached");
+        playerState.isPlaying = false;
+        playBtn.innerHTML = '<i class="fas fa-play"></i>';
+        return; 
+    }
     
     playSong(newIndex);
 }
@@ -561,7 +599,7 @@ async function uploadSong() {
         // Reload songs after delay
         setTimeout(() => {
             loadUserSongs();
-        }, 1000);
+        }, 2000);
         
     } catch (error) {
         uploadStatus.innerHTML = `
