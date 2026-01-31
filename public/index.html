@@ -22,54 +22,7 @@
         </div>
     </div>
 
-    <!-- Login Screen -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-container">
-            <div class="login-header">
-                <h1><i class="fas fa-music"></i> AI Music Player</h1>
-                <p>Secure cloud music streaming</p>
-            </div>
-            
-            <div id="emailStep">
-                <div class="input-group">
-                    <input type="email" id="emailInput" placeholder="Enter your email" autocomplete="email">
-                </div>
-                <button id="sendOtpBtn" class="login-btn">
-                    <i class="fas fa-envelope"></i> Send OTP
-                </button>
-                <p class="otp-note">We'll send a 6-digit code to your email</p>
-            </div>
-            
-            <div id="otpStep" style="display: none;">
-                <div class="input-group">
-                    <input type="text" id="otpInput" placeholder="Enter 6-digit OTP" maxlength="6" pattern="\d*" inputmode="numeric">
-                </div>
-                <button id="verifyOtpBtn" class="login-btn">
-                    <i class="fas fa-sign-in-alt"></i> Verify & Login
-                </button>
-                <button id="resendOtpBtn" class="text-btn">
-                    <i class="fas fa-redo"></i> Resend OTP
-                </button>
-                <button id="backToEmailBtn" class="text-btn" style="margin-top: 10px;">
-                    <i class="fas fa-arrow-left"></i> Back to Email
-                </button>
-            </div>
-            
-            <div id="loginMessage" class="login-message"></div>
-            
-            <div class="login-footer">
-                 <small>AI Music Player v3.4.0</small>
-    <br>
-    <small id="backendStatus">Connecting to server...</small>
-    <br>
-    <small id="emailStatus" style="color: #ffa726; font-size: 0.7rem;">
-        Email system: Checking...
-    </small>
-                <br>
-                <small id="backendStatus">Connecting to server...</small>
-            </div>
-        </div>
-    </div>
+   
 
     <!-- Main App -->
     <div id="mainApp" class="main-app">
